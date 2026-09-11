@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Garage App</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: #121212;
+      color: #ffffff;
+      padding: 15px;
+      margin: 0;
+    }
+    h1 { text-align: center; color: #ff9800; }
+    .card {
+      background: #1e1e1e;
+      padding: 15px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+    }
+    label { display: block; margin-top: 10px; font-weight: bold; }
+    input, textarea, button {
+      width: 100%;
+      padding: 12px;
+      margin-top: 5px;
+      border-radius: 8px;
+      border: 1px solid #333;
+      box-sizing: border-box;
+      font-size: 16px;
+    }
+    input, textarea { background: #2a2a2a; color: #fff; }
+    button {
+      background: #ff9800;
+      color: #000;
+      font-weight: bold;
+      border: none;
+      margin-top: 15px;
+      cursor: pointer;
+    }
+    .photo-btn { background: #0088cc; color: #fff; }
+    .vehicle-item {
+      border-left: 4px solid #ff9800;
+      background: #2a2a2a;
+      padding: 10px;
+      margin-bottom: 10px;
+      border-radius: 4px;
+    }
+    .plaque { font-size: 1.2em; font-weight: bold; color: #ff9800; }
+  </style>
+</head>
+<body>
+
+  <h1>🚗 Garage - Suivi Véhicules</h1>
+
+  <div class="card">
+    <h3>Ajouter un véhicule</h3>
+    
+    <!-- Bouton pour prendre la photo de la plaque -->
+    <label>1. Prendre en photo la plaque</label>
+    <input type="file" id="camera" accept="image/*" capture="environment" style="display:none">
+    <button type="button" class="photo-btn" onclick="document.getElementById('camera').click()">📸 Scanner / Prendre la plaque</button>
+    
+    <label>Plaque d'immatriculation :</label>
+    <input type="text" id="plaqueInput" placeholder="ex: AB-123-CD">
+
+    <label>Tâches effectuées :</label>
+    <textarea id="tachesInput" rows="3" placeholder="ex: Vidange + filtre à huile, changement pneus avant..."></textarea>
+
+    <button type="button" onclick="ajouterVehicule()">Enregistrer le véhicule</button>
+  </div>
+
+  <h2>Historique des véhicules</h2>
+  <div id="listeVehicules"></div>
+
+  <!-- Bibliothèque Tesseract.js pour la lecture OCR automatique de la plaque -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.min.js"></script>
+
+  <script>
+    // 1. Gestion de la photo et lecture OCR de la plaque
+    document.getElementById('camera').addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const plaqueInput = document.getElementById('plaqueInput');
+      plaqueInput.value = "Analyse de la plaque en cours...";
+
+      // Utilisation de Tesseract pour lire la photo
+      Tesseract.recognize(file, 'eng')
+        .then(({ data: { text } }) => {
+          // Nettoyage du texte pour garder le format plaque
+          const texteNettoye = text.replace(/[^A-Z0-9-]/gi, '').toUpperCase();
+          plaqueInput.value = texteNettoye || text.trim();
+        })
+        .catch(err => {
+          console.error(err);
+          plaqueInput.value = "";
+          alert("Erreur lors de la lecture de la photo.");
+        });
+    });
+
+    // 2. Gestion de la sauvegarde locale (LocalStorage)
+    function chargerVehicules() {
+      const liste = JSON.parse(localStorage.getItem('vehiculesGarage')) || [];
+      const container = document.getElementById('listeVehicules');
+      container.innerHTML = "";
+
+      liste.forEach((v, index) => {
+        container.innerHTML += `
+          <div class="vehicle-item">
+            <div class="plaque">${v.plaque}</div>
+            <small style="color:#aaa">${v.date}</small>
+            <p style="margin: 5px 0 0 0;">${v.taches.replace(/\n/g, '<br>')}</p>
+          </div>
+        `;
+      });
+    }
+
+    function ajouterVehicule() {
+      const plaque = document.getElementById('plaqueInput').value.trim();
+      const taches = document.getElementById('tachesInput').value.trim();
+
+      if (!plaque) {
+        alert("Veuillez entrer ou scanner une plaque.");
+        return;
+      }
+
+      const nouveau = {
+        plaque: plaque,
+        taches: taches || "Aucune tâche spécifiée",
+        date: new Date().toLocaleString('fr-FR')
+      };
+
+      const liste = JSON.parse(localStorage.getItem('vehiculesGarage')) || [];
+      liste.unshift(nouveau); // Ajoute au début de la liste
+      localStorage.setItem('vehiculesGarage', JSON.stringify(liste));
+
+      // Réinitialiser les champs
+      document.getElementById('plaqueInput').value = "";
+      document.getElementById('tachesInput').value = "";
+      
+      chargerVehicules();
+    }
+
+    // Charger l'historique au démarrage
+    chargerVehicules();
+  </script>
+</body>
+</html>
